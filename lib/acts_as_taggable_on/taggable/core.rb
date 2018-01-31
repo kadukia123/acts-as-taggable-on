@@ -226,7 +226,6 @@ module ActsAsTaggableOn::Taggable
       end
 
       def save_updated_tags
-        puts "saving tags:"
         super
         save_tags
       end

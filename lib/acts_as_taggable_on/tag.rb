@@ -70,20 +70,17 @@ module ActsAsTaggableOn
 
       return [] if list.empty?
 
-      list.map do |tag_name|
-        begin
-          tries ||= 3
+      existing_tags = named_any(list)
 
-          existing_tags = named_any(list)
-          comparable_tag_name = comparable_name(tag_name)
-          existing_tag = existing_tags.find { |tag| comparable_name(tag.name) == comparable_tag_name }
+      list.map do |tag_name|
+        comparable_tag_name = comparable_name(tag_name)
+        existing_tag = existing_tags.find { |tag| comparable_name(tag.name) == comparable_tag_name }
+        begin
           existing_tag || create(name: tag_name)
         rescue ActiveRecord::RecordNotUnique
-          if (tries -= 1).positive?
-            ActiveRecord::Base.connection.execute 'ROLLBACK'
-            retry
-          end
-
+          # Postgres aborts the current transaction with
+          # PG::InFailedSqlTransaction: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+          # so we have to rollback this transaction
           raise DuplicateTagError.new("'#{tag_name}' has already been taken")
         end
       end

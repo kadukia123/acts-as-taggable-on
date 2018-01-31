@@ -27,16 +27,13 @@ module ActsAsTaggableOn::Taggable
       end
     end
 
-    def owner_tags(owner)
+    def owner_tags_on(owner, context)
       if owner.nil?
-        scope = base_tags
+        scope = base_tags.where([%(#{ActsAsTaggableOn::Tagging.table_name}.context = ?), context.to_s])
       else
-        scope = base_tags.where(
-          "#{ActsAsTaggableOn::Tagging.table_name}" => {
-            tagger_id: owner.id,
-            tagger_type: owner.class.base_class.to_s
-          }
-        )
+        scope = base_tags.where([%(#{ActsAsTaggableOn::Tagging.table_name}.context = ? AND
+                                    #{ActsAsTaggableOn::Tagging.table_name}.tagger_id = ? AND
+                                    #{ActsAsTaggableOn::Tagging.table_name}.tagger_type = ?), context.to_s, owner.id, owner.class.base_class.to_s])
       end
 
       # when preserving tag order, return tags in created order
@@ -46,14 +43,6 @@ module ActsAsTaggableOn::Taggable
       else
         scope
       end
-    end
-
-    def owner_tags_on(owner, context)
-      scope = owner_tags(owner).where(
-        "#{ActsAsTaggableOn::Tagging.table_name}" => {
-          context: context
-        }
-      )
     end
 
     def cached_owned_tag_list_on(context)

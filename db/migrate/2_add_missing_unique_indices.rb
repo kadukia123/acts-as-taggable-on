@@ -1,9 +1,4 @@
-if ActiveRecord.gem_version >= Gem::Version.new('5.0')
-  class AddMissingUniqueIndices < ActiveRecord::Migration[4.2]; end
-else
-  class AddMissingUniqueIndices < ActiveRecord::Migration; end
-end
-AddMissingUniqueIndices.class_eval do
+class AddMissingUniqueIndices < ActiveRecord::Migration
   def self.up
     add_index :tags, :name, unique: true
 

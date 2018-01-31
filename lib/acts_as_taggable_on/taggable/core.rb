@@ -5,8 +5,7 @@ module ActsAsTaggableOn::Taggable
 
       base.class_eval do
         attr_writer :custom_contexts
-        after_save :save_tags, if: :do_save_tags?
-        after_create :save_tags
+        after_save :save_tags
       end
 
       base.initialize_acts_as_taggable_on_core
@@ -49,11 +48,6 @@ module ActsAsTaggableOn::Taggable
             end
           RUBY
         end
-      end
-
-      def save
-        super
-        save_tags
       end
 
       def taggable_on(preserve_tag_order, *tag_types)
@@ -117,10 +111,10 @@ module ActsAsTaggableOn::Taggable
 
           if owned_by
             joins <<  "JOIN #{ActsAsTaggableOn::Tagging.table_name}" +
-                      "  ON #{ActsAsTaggableOn::Tagging.table_name}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
-                      " AND #{ActsAsTaggableOn::Tagging.table_name}.taggable_type = #{quote_value(base_class.name, nil)}" +
-                      " AND #{ActsAsTaggableOn::Tagging.table_name}.tagger_id = #{quote_value(owned_by.id, nil)}" +
-                      " AND #{ActsAsTaggableOn::Tagging.table_name}.tagger_type = #{quote_value(owned_by.class.base_class.to_s, nil)}"
+                "  ON #{ActsAsTaggableOn::Tagging.table_name}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
+                " AND #{ActsAsTaggableOn::Tagging.table_name}.taggable_type = #{quote_value(base_class.name, nil)}" +
+                " AND #{ActsAsTaggableOn::Tagging.table_name}.tagger_id = #{quote_value(owned_by.id, nil)}" +
+                " AND #{ActsAsTaggableOn::Tagging.table_name}.tagger_type = #{quote_value(owned_by.class.base_class.to_s, nil)}"
 
             joins << " AND " + sanitize_sql(["#{ActsAsTaggableOn::Tagging.table_name}.created_at >= ?", options.delete(:start_at)]) if options[:start_at]
             joins << " AND " + sanitize_sql(["#{ActsAsTaggableOn::Tagging.table_name}.created_at <= ?", options.delete(:end_at)])   if options[:end_at]
@@ -145,8 +139,8 @@ module ActsAsTaggableOn::Taggable
           )
 
           tagging_cond = "#{ActsAsTaggableOn::Tagging.table_name} #{taggings_alias}" +
-                          " WHERE #{taggings_alias}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
-                          " AND #{taggings_alias}.taggable_type = #{quote_value(base_class.name, nil)}"
+              " WHERE #{taggings_alias}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
+              " AND #{taggings_alias}.taggable_type = #{quote_value(base_class.name, nil)}"
 
           tagging_cond << " AND " + sanitize_sql(["#{taggings_alias}.created_at >= ?", options.delete(:start_at)]) if options[:start_at]
           tagging_cond << " AND " + sanitize_sql(["#{taggings_alias}.created_at <= ?", options.delete(:end_at)])   if options[:end_at]
@@ -228,15 +222,21 @@ module ActsAsTaggableOn::Taggable
         query = self
         query = self.select(select_clause.join(',')) unless select_clause.empty?
         query.joins(joins.join(' '))
-          .where(conditions.join(' AND '))
-          .group(group)
-          .having(having)
-          .order(order_by.join(', '))
-          .readonly(false)
+            .where(conditions.join(' AND '))
+            .group(group)
+            .having(having)
+            .order(order_by.join(', '))
+            .readonly(false)
       end
 
       def is_taggable?
         true
+      end
+
+      def save_updated_tags
+        puts "saving tags:"
+        super
+        save_tags
       end
 
       def adjust_taggings_alias(taggings_alias)
@@ -270,6 +270,10 @@ module ActsAsTaggableOn::Taggable
 
     def is_taggable?
       self.class.is_taggable?
+    end
+
+    def manually_save_tags
+      save_tags
     end
 
     def add_custom_context(value)
@@ -378,6 +382,13 @@ module ActsAsTaggableOn::Taggable
     # Find existing tags or create non-existing tags
     def load_tags(tag_list)
       ActsAsTaggableOn::Tag.find_or_create_all_with_like_by_name(tag_list)
+    end
+
+    def save_updated_tags
+      unless manually_save
+        super
+        save_tags
+      end
     end
 
     def save_tags

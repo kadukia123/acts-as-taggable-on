@@ -12,6 +12,18 @@ module ActsAsTaggableOn
     #   class Book < ActiveRecord::Base
     #     acts_as_taggable
     #   end
+    def manually_save_tags
+      class_attribute :manually_save
+      self.manually_save = true
+    end
+
+    ##
+    # This is an alias for calling <tt>acts_as_taggable_on :tags</tt>.
+    #
+    # Example:
+    #   class Book < ActiveRecord::Base
+    #     acts_as_taggable
+    #   end
     def acts_as_taggable
       acts_as_taggable_on :tags
     end
@@ -56,28 +68,31 @@ module ActsAsTaggableOn
 
     private
 
-      # Make a model taggable on specified contexts
-      # and optionally preserves the order in which tags are created
-      #
-      # Separate methods used above for backwards compatibility
-      # so that the original acts_as_taggable_on method is unaffected
-      # as it's not possible to add another argument to the method
-      # without the tag_types being enclosed in square brackets
-      #
-      # NB: method overridden in core module in order to create tag type
-      #     associations and methods after this logic has executed
-      #
+    # Make a model taggable on specified contexts
+    # and optionally preserves the order in which tags are created
+    #
+    # Separate methods used above for backwards compatibility
+    # so that the original acts_as_taggable_on method is unaffected
+    # as it's not possible to add another argument to the method
+    # without the tag_types being enclosed in square brackets
+    #
+    # NB: method overridden in core module in order to create tag type
+    #     associations and methods after this logic has executed
+    #
     def taggable_on(preserve_tag_order, *tag_types)
       tag_types = tag_types.to_a.flatten.compact.map(&:to_sym)
 
       if taggable?
         self.tag_types = (self.tag_types + tag_types).uniq
         self.preserve_tag_order = preserve_tag_order
+        self.manually_save = false
       else
         class_attribute :tag_types
         self.tag_types = tag_types
         class_attribute :preserve_tag_order
         self.preserve_tag_order = preserve_tag_order
+        class_attribute :manually_save
+        self.manually_save = false
 
         class_eval do
           has_many :taggings, as: :taggable, dependent: :destroy, class_name: '::ActsAsTaggableOn::Tagging'

@@ -7,7 +7,8 @@ module ActsAsTaggableOn::Taggable
 
       base.class_eval do
         attr_writer :custom_contexts
-        after_save :save_tags
+        after_save :save_tags, if: do_save_tags?
+        # after_save :save_tags
       end
 
       base.initialize_acts_as_taggable_on_core
@@ -50,6 +51,11 @@ module ActsAsTaggableOn::Taggable
             end
           RUBY
         end
+      end
+
+      def save
+        super
+        save_tags
       end
 
       def taggable_on(preserve_tag_order, *tag_types)

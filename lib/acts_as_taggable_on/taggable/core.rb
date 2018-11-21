@@ -1,3 +1,5 @@
+require_relative 'tagged_with_query'
+
 module ActsAsTaggableOn::Taggable
   module Core
 
@@ -6,8 +8,7 @@ module ActsAsTaggableOn::Taggable
 
       base.class_eval do
         attr_writer :custom_contexts
-        after_save :save_updated_tags
-        after_create :save_tags
+        after_save :save_tags
       end
 
       base.initialize_acts_as_taggable_on_core
@@ -27,13 +28,13 @@ module ActsAsTaggableOn::Taggable
             # the associations tag_taggings & tags are always returned in created order
             has_many context_taggings, -> { includes(:tag).order(taggings_order).where(context: tags_type) },
                      as: :taggable,
-                     class_name: ActsAsTaggableOn::Tagging,
+                     class_name: 'ActsAsTaggableOn::Tagging',
                      dependent: :destroy,
                      after_add: :dirtify_tag_list,
                      after_remove: :dirtify_tag_list
 
             has_many context_tags, -> { order(taggings_order) },
-                     class_name: ActsAsTaggableOn::Tag,
+                     class_name: 'ActsAsTaggableOn::Tag',
                      through: context_taggings,
                      source: :tag
 
@@ -106,23 +107,10 @@ module ActsAsTaggableOn::Taggable
         return none if tag_list.empty?
 
         ::ActsAsTaggableOn::Taggable::TaggedWithQuery.build(self, ActsAsTaggableOn::Tag, ActsAsTaggableOn::Tagging, tag_list, options)
-        
       end
 
       def is_taggable?
         true
-      end
-
-      def save_updated_tags
-        super
-        save_tags
-      end
-
-      def adjust_taggings_alias(taggings_alias)
-        if taggings_alias.size > 75
-          taggings_alias = 'taggings_alias_' + Digest::SHA1.hexdigest(taggings_alias)
-        end
-        taggings_alias
       end
 
       def taggable_mixin
@@ -141,10 +129,6 @@ module ActsAsTaggableOn::Taggable
 
     def is_taggable?
       self.class.is_taggable?
-    end
-
-    def manually_save_tags
-      save_tags
     end
 
     def add_custom_context(value)
@@ -238,13 +222,6 @@ module ActsAsTaggableOn::Taggable
       ActsAsTaggableOn::Tag.find_or_create_all_with_like_by_name(tag_list)
     end
 
-    def save_updated_tags
-      unless manually_save
-        super
-        save_tags
-      end
-    end
-
     def save_tags
       tagging_contexts.each do |context|
         next unless tag_list_cache_set_on(context)
@@ -296,12 +273,6 @@ module ActsAsTaggableOn::Taggable
     end
 
     private
-
-    # Rails 5 has merged sanitize and quote_value
-    # See https://github.com/rails/rails/blob/master/activerecord/lib/active_record/sanitization.rb#L10
-    def quote_value(value, column = nil)
-      ActsAsTaggableOn::Utils.active_record5? ? super(value) : super(value, column)
-    end
 
     def ensure_included_cache_methods!
       self.class.columns

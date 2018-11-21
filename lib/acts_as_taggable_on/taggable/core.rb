@@ -8,7 +8,9 @@ module ActsAsTaggableOn::Taggable
 
       base.class_eval do
         attr_writer :custom_contexts
-        after_save :save_tags
+        # => after_save :save_tags
+        after_save :save_updated_tags
+        after_create :save_tags
       end
 
       base.initialize_acts_as_taggable_on_core
@@ -131,6 +133,10 @@ module ActsAsTaggableOn::Taggable
       self.class.is_taggable?
     end
 
+    def manually_save_tags
+      save_tags
+    end
+
     def add_custom_context(value)
       custom_contexts << value.to_s unless custom_contexts.include?(value.to_s) or self.class.tag_types.map(&:to_s).include?(value.to_s)
     end
@@ -221,6 +227,20 @@ module ActsAsTaggableOn::Taggable
     def load_tags(tag_list)
       ActsAsTaggableOn::Tag.find_or_create_all_with_like_by_name(tag_list)
     end
+
+    def save_updated_tags
+      unless manually_save
+        super
+        save_tags
+      end
+    end
+
+    def adjust_taggings_alias(taggings_alias)
+        if taggings_alias.size > 75
+          taggings_alias = 'taggings_alias_' + Digest::SHA1.hexdigest(taggings_alias)
+        end
+        taggings_alias
+      end
 
     def save_tags
       tagging_contexts.each do |context|
